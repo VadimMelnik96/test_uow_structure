@@ -16,12 +16,166 @@ asyncpg = "^0.30.0"
 uvicorn = "^0.34.0"
 greenlet = "^3.1.1"
 psycopg2-binary = "^2.9.10"
+black = "^23.3.0"
 
 [tool.poetry.group.dev.dependencies]
-
+ruff = "^0.6.6"
 
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.black]
+line-length = 100
+include = '\.pyi?$'
+
+[tool.flakehell]
+max_line_length = 100
+format = "colored"
+show_source = true
+exclude = [ "tests/fixtures/__init__.py", "*/migrations/*",]
+
+[tool.flakehell.plugins]
+pyflakes = ["+*"]
+pycodestyle = [ "+*", "-W503", "-E203",]
+flake8-black = ["+*"]
+wemake-python-styleguide = ["-*"]
+
+[tool.flakehell.exceptions."migrations/"]
+pyflakes = ["-*"]
+wemake-python-styleguide = ["-*"]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+known_third_party = [ "celery", "alembic", "sqlalchemy", "httpx", "pytest", "posix_ipc", "sqlalchemy_utils", "starlette", "pydantic", "fastapi",]
+force_sort_within_sections = true
+
+#[tool.commitizen]
+#name = "cz_conventional_commits"
+#version = "4.6.4"
+#bump_message = "release $current_version → $new_version"
+#update_changelog_on_bump = true
+#version_files = [
+#    "pyproject.toml:version"
+#]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::UserWarning"
+]
+asyncio_mode = "auto"
+
+[tool.flake8]
+max-line-length = 120
+count = true
+
+[tool.pycln]
+all = true
+
+[tool.mypy]
+# Mypy configuration:
+# https://mypy.readthedocs.io/en/latest/config_file.html
+allow_redefinition = false
+check_untyped_defs = true
+disallow_untyped_decorators = true
+disallow_any_explicit = false
+disallow_any_generics = false
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+ignore_errors = false
+ignore_missing_imports = false
+local_partial_types = true
+strict_optional = true
+strict_equality = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unreachable = true
+warn_no_return = true
+exclude = "^(tests.migrations).*$"
+plugins = ["sqlalchemy.ext.mypy.plugin", "pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "sqlalchemy_utils.*",
+    "choicesenum.*",
+    "factory.*",
+    "pytest_async_sqlalchemy.*",
+    "sqlalchemy.testing",
+    "deepdiff.*",
+    "tablib.*",
+#    "fastapi_cache.*",
+#    "phonenumbers",
+#    "itsdangerous.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+cache-dir = "~/.cache/ruff"
+line-length = 120
+show-fixes = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "DTZ", "T20", "SIM", "PT", "PL", "PLE", "PLR", "PLW", "D", "ANN"]
+ignore = [
+    "D100",
+    "D104",
+    "D106",
+    "D107",
+    "N805",
+    "B904",
+    "N818",  # Exception name `AttributeNotImplemented` should be named with an Error suffix
+    "UP007",  # Use `X | Y` for type annotations
+    "PLR0915",
+    "PLR2004",
+    "PLR0912",  # Too many branches
+    "PT001",
+    "PT023",
+    "B008",
+    "PLR0913",
+    "D415",   #First line shoud end ...
+    "D205",
+    "ANN204",
+    "ANN101",  # Игнорируем проверку аннотации для `self`
+    "ANN102",  # Игнорируем проверку аннотации для `cls`
+    "ANN204",  # Игнорируем проверку возвращаемого типа для `__init__`
+]
+
+fixable = ["F", "I", "D", "E", "W", "PT", "UP", "C", "B"]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"*/versions/*.py" = ["D103", "W291"]
+"*/models/*.py" = ["F821", "D101"]
+"*/migrations/*.py" = ["D103", "D205"]
+"*test_*.py" = ["PLR0913"]
+"*fixtures*.py" = [
+    "PLR0913",
+    "E501"  # Line too long
+]
+
+[tool.ruff.lint.isort]
+force-wrap-aliases = true
+combine-as-imports = true
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Header", "fastapi.Body"]
+
+[tool.ruff.lint.pylint]
+max-returns = 12
+max-args = 6

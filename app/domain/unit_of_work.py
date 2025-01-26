@@ -1,7 +1,5 @@
 import abc
 
-from sqlalchemy.orm import Session
-
 from app.common.uow.interfaces import BaseAbstractUnitOfWork
 from app.common.uow.uow import BaseUnitOfWork
 from app.domain.customers.repositories.customers import CustomerRepo
@@ -17,8 +15,8 @@ class IUnitOfWork(BaseAbstractUnitOfWork, abc.ABC):
     orders: IOrdersRepository
 
 
-
 class UnitOfWork(BaseUnitOfWork, IUnitOfWork):
+    """Единица работы"""
 
     async def __aenter__(self) -> None:
         """Инициализация сессии и репозиториев."""

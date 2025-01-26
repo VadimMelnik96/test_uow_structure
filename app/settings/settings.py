@@ -1,9 +1,9 @@
-from typing import Sequence, Self
+from collections.abc import Sequence
+from typing import Self
 
 from dotenv import load_dotenv
 from pydantic import PostgresDsn, RedisDsn, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 load_dotenv()
 
@@ -37,6 +37,7 @@ class PostgresConfig(EnvBaseSettings):
 
     @model_validator(mode="after")
     def assemble_db_connection(self) -> Self:
+        """Сборка Postgres DSN"""
         if self.dsn is None:
             self.dsn = (
                 str(
@@ -74,6 +75,8 @@ class RedisSettings(EnvBaseSettings):
 
 
 class Settings(EnvBaseSettings):
+    """Настройки проекта"""
+
     app: AppSettings = AppSettings()
     database: PostgresConfig = PostgresConfig()
 

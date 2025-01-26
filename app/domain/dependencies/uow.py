@@ -1,4 +1,5 @@
-from typing import AsyncGenerator, Annotated
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
 from fastapi import Depends
 
@@ -10,10 +11,13 @@ from app.settings.settings import config
 
 
 async def get_uow() -> UnitOfWork:
+    """Зависимость, возвращающая UOW"""
     db = Database(config=config.database)  # Инициализация базы данных
     return UnitOfWork(db)
+
 
 async def get_customer_service(
     uow: Annotated[IUnitOfWork, Depends(get_uow)]
 ) -> AsyncGenerator[ICustomerService, None]:
+    """Зависимость, возвращающаяя сервис"""
     yield CustomerService(uow)

@@ -5,5 +5,7 @@ from app.domain.models.customers import Customers
 
 
 class CustomerRepo(SQLAlchemyRepository, ICustomersRepository):
+    """Репозиторий потребителя"""
+
     model = Customers
     response_dto = Customer

@@ -1,67 +1,67 @@
-from typing import Type
-
-from app.common.repository.interfaces import IRepository
-
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pydantic import BaseModel
 from sqlalchemy import (
+    Delete,
+    Result,
+    ScalarResult,
+    Select,
+    ValuesBase,
+    delete,
     insert,
     select,
     update,
-    delete,
-    ScalarResult,
-    Select,
-    Result,
-    ValuesBase,
-    Delete,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
 from app.common.exceptions.exceptions import NotFoundError
+from app.common.repository.interfaces import IRepository
+
 
 class SQLAlchemyRepository(IRepository):
-    """
-    CRUD - репозиторий для SQLAlchemy
-    При инициализации наследников определяется модель и стандартное dto ответа
-    """
+    """CRUD - репозиторий для SQLAlchemy"""
 
-    model: Type[DeclarativeBase] = None
+    model: type[DeclarativeBase] = None
     response_dto: BaseModel = None
 
     def __init__(
-        self, session: AsyncSession,
+        self,
+        session: AsyncSession,
     ):
         self.session = session
         self.auto_commit = None
         self.auto_refresh = None
 
     async def create(
-            self,
-            create_dto: BaseModel,
-            response_dto: DeclarativeBase | None = None,
-            auto_commit: bool = True,
+        self,
+        create_dto: BaseModel,
+        response_dto: DeclarativeBase | None = None,
+        auto_commit: bool = True,
     ) -> BaseModel:
-        stmt = (
-            insert(self.model).values(**create_dto.model_dump()).returning(self.model)
-        )
+        """Создание объекта"""
+        stmt = insert(self.model).values(**create_dto.model_dump()).returning(self.model)
         res = await self._execute(stmt)
         return self.to_dto(res.scalar_one(), response_dto)
 
     async def bulk_create(
-            self,
-            bulk_create_dto: list[BaseModel],
-            response_dto: BaseModel | None = None,
-            auto_commit: bool = True,
+        self,
+        bulk_create_dto: list[BaseModel],
+        response_dto: BaseModel | None = None,
+        auto_commit: bool = True,
     ) -> BaseModel:
+        """Создание нескольких объектов"""
         stmt = (
-            insert(self.model).values([entity.model_dump() for entity in bulk_create_dto]).returning(self.model)
+            insert(self.model)
+            .values([entity.model_dump() for entity in bulk_create_dto])
+            .returning(self.model)
         )
         res = await self._execute(stmt)
         return self.to_dto(res.scalar_one(), response_dto)
 
     async def get_one(self, filters: BaseModel, response_dto: BaseModel | None = None) -> BaseModel:
+        """Получение одного объекта"""
         stmt = select(self.model).filter_by(**filters.model_dump(exclude_none=True))
         result = await self._execute(stmt)
         instance = result.scalar_one_or_none()
@@ -72,8 +72,9 @@ class SQLAlchemyRepository(IRepository):
         self,
         response_dto: DeclarativeBase | None = None,
         filters: BaseModel = None,
-        order_filters: BaseModel = None
+        order_filters: BaseModel = None,
     ) -> list[BaseModel]:
+        """Получение списка объектов"""
         stmt = select(self.model)
         if filters:
             stmt = stmt.filter_by(**filters.model_dump(exclude_none=True))
@@ -94,17 +95,19 @@ class SQLAlchemyRepository(IRepository):
         response_dto: BaseModel | None = None,
         auto_commit: bool = True,
     ) -> BaseModel:
+        """Обновление объекта"""
         stmt = (
             update(self.model)
             .values(**update_dto.model_dump(exclude_unset=True))
             .filter_by(**filters.model_dump(exclude_unset=True))
             .returning(self.model)
-        )
+        )  # noqa: ANN003
         res = (await self._execute(stmt)).scalar_one_or_none()
         self.check_not_found(res)
         return self.to_dto(res, response_dto)
 
-    async def delete(self, auto_commit: bool = True, **filters) -> None:
+    async def delete(self, auto_commit: bool = True, **filters: BaseModel) -> None:
+        """Удаление объекта"""
         stmt = delete(self.model).filter_by(**filters)
         result = await self._execute(stmt)
         if result.rowcount == 0:
@@ -115,9 +118,7 @@ class SQLAlchemyRepository(IRepository):
     def to_dto(
         self, instance: DeclarativeBase | ScalarResult, dto: BaseModel = None
     ) -> BaseModel | list[BaseModel]:
-        """
-        Метод, преобразующий модели SQLAlchemy к dto.
-        """
+        """Метод, преобразующий модели SQLAlchemy к dto."""
         if dto is None:
             dto = self.response_dto
         if not isinstance(instance, ScalarResult | list):
@@ -131,6 +132,7 @@ class SQLAlchemyRepository(IRepository):
         attribute_names: Iterable[str] | None = None,
         with_for_update: bool | None = None,
     ) -> None:
+        """Метод обновления объекта в сессии"""
         if auto_refresh is None:
             auto_refresh = self.auto_refresh
 
@@ -146,12 +148,12 @@ class SQLAlchemyRepository(IRepository):
 
     @staticmethod
     def check_not_found(item_or_none: DeclarativeBase | None) -> DeclarativeBase:
+        """Метод проверки на существование в базе"""
         if item_or_none is None:
             msg = "No item found when one was expected"
             raise NotFoundError(msg)
         return item_or_none
 
-    async def _execute(
-        self, statement: ValuesBase | Select[Any] | Delete
-    ) -> Result[Any]:
+    async def _execute(self, statement: ValuesBase | Select[Any] | Delete) -> Result[Any]:
+        """Метод выполнения запроса"""
         return await self.session.execute(statement)

@@ -5,7 +5,7 @@ from app.domain.models.base import Base
 
 
 class Customers(Base):
-    __tablename__ = 'customers'
+    __tablename__ = "customers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     first_name: Mapped[str] = mapped_column(String(500), default="", nullable=False)
