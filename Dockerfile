@@ -1,6 +1,6 @@
 FROM python:3.12.1-slim
 
-ARG POETRY_PARAMS="--without dev"
+ARG POETRY_PARAMS="--without dev --no-root"
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONWARNINGS=ignore
