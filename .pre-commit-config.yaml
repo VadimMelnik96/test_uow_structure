@@ -1,0 +1,37 @@
+repos:
+-   repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
+    rev: v0.6.1      # Insert the latest tag here
+    hooks:
+    -   id: pre-commit-update
+#      args: [--dry-run]
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+    -   id: check-merge-conflict
+-   repo: https://github.com/psf/black
+    rev: '24.10.0'
+    hooks:
+    -   id: black
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.3
+    hooks:
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+-   repo: local
+    hooks:
+#      - id: backend-mypy
+#        name: backend-mypy
+#        entry: poetry run mypy --config-file pyproject.toml .
+#        pass_filenames: false
+#        language: system
+    - id: alembic-heads
+      name: alembic-heads
+      entry: python check_alembic_heads.py
+      always_run: true
+      pass_filenames: false
+      language: python
+      additional_dependencies: [ poetry, alembic ]
