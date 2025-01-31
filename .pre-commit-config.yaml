@@ -13,11 +13,11 @@ repos:
     -   id: check-added-large-files
     -   id: check-merge-conflict
 -   repo: https://github.com/psf/black
-    rev: '24.10.0'
+    rev: '25.1.0'
     hooks:
     -   id: black
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.3
+    rev: v0.9.4
     hooks:
     -   id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -28,10 +28,10 @@ repos:
 #        entry: poetry run mypy --config-file pyproject.toml .
 #        pass_filenames: false
 #        language: system
-    - id: alembic-heads
-      name: alembic-heads
-      entry: python check_alembic_heads.py
-      always_run: true
-      pass_filenames: false
-      language: python
-      additional_dependencies: [ poetry, alembic ]
+    -   id: alembic-heads
+        name: alembic-heads
+        entry: python check_alembic_heads.py
+        always_run: true
+        pass_filenames: false
+        language: python
+        additional_dependencies: [poetry, alembic]

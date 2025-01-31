@@ -10,14 +10,18 @@ from app.services.interfaces import ICustomerService
 from app.settings.settings import config
 
 
-async def get_uow() -> UnitOfWork:
+async def get_db() -> Database:
+    """Инициализация базы данных"""
+    yield Database(config=config.database)
+
+
+async def get_uow(db: Annotated[Database, Depends(get_db)]) -> UnitOfWork:
     """Зависимость, возвращающая UOW"""
-    db = Database(config=config.database)  # Инициализация базы данных
-    return UnitOfWork(db)
+    yield UnitOfWork(db)
 
 
 async def get_customer_service(
-    uow: Annotated[IUnitOfWork, Depends(get_uow)]
+    uow: Annotated[IUnitOfWork, Depends(get_uow)],
 ) -> AsyncGenerator[ICustomerService, None]:
-    """Зависимость, возвращающаяя сервис"""
+    """Зависимость, возвращающая сервис"""
     yield CustomerService(uow)
