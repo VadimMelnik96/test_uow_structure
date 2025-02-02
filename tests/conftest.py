@@ -4,6 +4,8 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.api.http.main import app
 from app.domain.dependencies.uow import get_db
@@ -38,13 +40,22 @@ async def db(settings: Settings) -> Database:
     """Фикстура для инициализации тестовой базы данных."""
     database = Database(config=settings.database)
     engine = database.engine
-    # Создаем все таблицы
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield database
-    # Удаляем все таблицы после завершения тестов
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    async with database.engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE"))
+
+
+@pytest.fixture()
+async def db_session(db: Database) -> AsyncSession:
+    """Фикстура для создания изолированной сессии для каждого теста."""
+    async with db.session_factory() as session:  # noqa: SIM117
+        async with session.begin():  # noqa: SIM117
+            yield session
+            await session.rollback()
 
 
 @pytest.fixture(scope="session")
