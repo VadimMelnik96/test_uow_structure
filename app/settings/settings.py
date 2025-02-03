@@ -39,18 +39,15 @@ class PostgresConfig(EnvBaseSettings):
     def assemble_db_connection(self) -> Self:
         """Сборка Postgres DSN"""
         if self.dsn is None:
-            self.dsn = (
-                str(
-                    PostgresDsn.build(
-                        scheme=self.scheme,
-                        username=self.user,
-                        password=self.password,
-                        host=self.host,
-                        port=self.port,
-                        path=f"{self.db}",
-                    )
+            self.dsn = str(
+                PostgresDsn.build(
+                    scheme=self.scheme,
+                    username=self.user,
+                    password=self.password,
+                    host=self.host,
+                    port=self.port,
+                    path=f"{self.db}",
                 )
-                + "?async_fallback=True"
             )
         return self
 

@@ -1,11 +1,15 @@
 import asyncio
+import pathlib
+import uuid
+from typing import Callable
 
 import pytest
+from _pytest.fixtures import SubRequest
 from alembic import command
 from alembic.config import Config
 from httpx import AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.adapters.api.http.main import app
 from app.domain.dependencies.uow import get_db
@@ -36,17 +40,111 @@ def settings() -> Settings:
 
 
 @pytest.fixture(scope="session")
-async def db(settings: Settings) -> Database:
-    """Фикстура для инициализации тестовой базы данных."""
-    database = Database(config=settings.database)
-    engine = database.engine
+def test_db_name() -> str:
+    """Генерация уникального имени тестовой базы данных."""
+    return f"test_db_{uuid.uuid4().hex}"
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield database
+
+@pytest.fixture(scope="session")
+async def create_test_db(settings: Settings, test_db_name: str) -> None:
+    """Создание тестовой базы данных."""
+    admin_engine = create_async_engine(
+        str(settings.database.dsn).replace(settings.database.db, "postgres"),
+        isolation_level="AUTOCOMMIT",
+    )
+
+    async with admin_engine.connect() as conn:
+        await conn.execute(text(f"CREATE DATABASE {test_db_name}"))
+
+    await admin_engine.dispose()
+
+
+@pytest.fixture(scope="session")
+async def drop_test_db(settings: Settings, test_db_name: str) -> None:
+    """Удаление тестовой базы данных."""
+    yield
+
+    admin_engine = create_async_engine(
+        str(settings.database.dsn).replace(settings.database.db, "postgres"),
+        isolation_level="AUTOCOMMIT",
+    )
+
+    async with admin_engine.connect() as conn:
+        # Завершаем все соединения с тестовой базой данных
+        await conn.execute(
+            text(
+                f"""
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{test_db_name}'
+                AND pid <> pg_backend_pid();
+                """
+            )
+        )
+        await conn.execute(text(f"DROP DATABASE {test_db_name}"))
+
+    await admin_engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def project_dir(request: SubRequest) -> pathlib.Path:
+    """Директория расположения проекта."""
+    return pathlib.Path(request.config.rootdir)
+
+
+@pytest.fixture(scope="session")
+def migrations_dir(request: SubRequest) -> pathlib.Path:
+    """Директория расположения миграций."""
+    return pathlib.Path(request.config.rootdir) / "app/infrastructure/database/migrations"
+
+
+@pytest.fixture(scope="session")
+async def db(
+    settings: Settings,
+    test_db_name: str,
+    create_test_db: Callable,
+    drop_test_db: Callable,
+    request: SubRequest,
+    migrations_dir: pathlib.Path,
+    project_dir: pathlib.Path,
+) -> Database:
+    """Фикстура для инициализации тестовой базы данных."""
+    test_db_url = str(settings.database.dsn).replace(settings.database.db, test_db_name)
+
+    class TestDatabase:
+        """Вспомогательный класс для работы с БД"""
+
+        def __init__(self, dsn: str):
+            self.engine = create_async_engine(url=str(dsn), echo=True, pool_size=5, max_overflow=10)
+
+            self.session_factory = async_sessionmaker(
+                bind=self.engine,
+                autoflush=False,
+                autocommit=False,
+                expire_on_commit=False,
+            )
+
+    database = TestDatabase(dsn=test_db_url)
+
+    # Применяем миграции Alembic
+    alembic_cfg = Config(project_dir / "alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", test_db_url.replace("+asyncpg", ""))
+    alembic_cfg.set_main_option("script_location", str(migrations_dir))
+
+    engine = create_async_engine(test_db_url)
+
+    async with engine.connect() as connection:
+
+        def run_migrations(connection):
+            with connection.begin():
+                command.upgrade(alembic_cfg, "head")
+
+        await connection.run_sync(run_migrations)
+
     async with database.engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
-            await conn.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE"))
+        await conn.run_sync(Base.metadata.create_all)
+
+    return database
 
 
 @pytest.fixture()
@@ -56,16 +154,6 @@ async def db_session(db: Database) -> AsyncSession:
         async with session.begin():  # noqa: SIM117
             yield session
             await session.rollback()
-
-
-@pytest.fixture(scope="session")
-def _apply_migrations(settings: Settings) -> None:
-    """Фикстура для применения миграций Alembic."""
-    alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", str(settings.database.dsn))
-    command.upgrade(alembic_cfg, "head")
-    yield
-    command.downgrade(alembic_cfg, "base")
 
 
 @pytest.fixture()

@@ -171,7 +171,8 @@ fixable = ["F", "I", "D", "E", "W", "PT", "UP", "C", "B"]
 [tool.ruff.lint.extend-per-file-ignores]
 "*/versions/*.py" = ["D103", "W291"]
 "*/models/*.py" = ["F821", "D101"]
-"*/migrations/*.py" = ["D103", "D205"]
+"*/migrations/*.py" = ["D103", "D205", "ANN001", "ANN201", "ANN202"]
+"conftest.py" = ["ANN001", "ANN202", "ANN201", "PT004"]
 "*test_*.py" = ["PLR0913"]
 "*fixtures*.py" = [
     "PLR0913",
